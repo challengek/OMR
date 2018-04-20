@@ -20,8 +20,17 @@
             android:layout_height="wrap_content"
             android:layout_alignParentRight="true"
             android:layout_alignParentTop="true"
-            android:layout_marginRight="18dp"
+            android:layout_marginRight="88dp"
             android:src="@android:drawable/ic_menu_camera" />
+        
+        <ImageButton
+            android:id="@+id/btn_picture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginRight="18dp"
+            android:src="@android:drawable/ic_menu_crop" />
 
     </RelativeLayout>
     
@@ -59,7 +68,7 @@
         android:layout_below="@+id/topbar"
         android:layout_above="@id/bottombar" >
 
-        <LinearLayout
+       <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical" >
@@ -87,6 +96,13 @@
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
                 android:maxHeight="300dp" />
+
+            <TextView
+                android:id="@+id/tv_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TextView" />
+
         </LinearLayout>
     </ScrollView>
 

@@ -67,8 +67,7 @@ public class ImgPretreatment {
 	/**
 	 * 获取当前图片的灰度图
 	 * 
-	 * @param img
-	 *            原图片
+	 * @param img 原图片
 	 * @return 灰度图
 	 */
 	private static Bitmap getGrayImg() {

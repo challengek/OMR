@@ -2,8 +2,10 @@ package com.example.omr;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 
 import com.example.omr.tools.ImgPretreatment;
+import com.example.omr.tools.MusicRecognition;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -12,6 +14,8 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,6 +23,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
 	
@@ -28,13 +33,27 @@ public class MainActivity extends Activity {
 	private static String IMG_PATH = getSDPath() + java.io.File.separator + "omrdir";
 	
 	private static ImageButton btnCamera;
+	private static ImageButton btnPicture;
 	private static ImageButton btnPlay;
 	private static ImageButton btnPause;
 	private static ImageView imgSelected;
 	private static ImageView imgTreated;
+	
+	private static TextView tvResult;
 
 	private static Bitmap bitmapSelected;
 	private static Bitmap bitmapTreated;
+	
+	// 该handler用于处理修改结果的任务
+	public static Handler myHandler = new Handler() {
+
+		@Override
+		public void handleMessage(Message msg) {
+			tvResult.setText((String) msg.obj);
+			super.handleMessage(msg);
+		}
+
+	};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -42,13 +61,17 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 		// 绑定按键
 		btnCamera = (ImageButton) findViewById(R.id.btn_camera);
+		btnPicture = (ImageButton) findViewById(R.id.btn_picture);
 		btnPlay = (ImageButton) findViewById(R.id.btn_play);
 		btnPause = (ImageButton) findViewById(R.id.btn_pause);
 		imgSelected = (ImageView) findViewById(R.id.img_selected);
 		imgTreated = (ImageView) findViewById(R.id.img_treated);
 		
+		tvResult = (TextView) findViewById(R.id.tv_result);
+		
 		// 绑定监听器
 		btnCamera.setOnClickListener(new OnClick());
+		btnPicture.setOnClickListener(new OnClick());
 		btnPlay.setOnClickListener(new OnClick());
 		btnPause.setOnClickListener(new OnClick());
 	}
@@ -69,6 +92,17 @@ public class MainActivity extends Activity {
 			showPicture(imgSelected, bitmapSelected);
 			bitmapTreated = ImgPretreatment.doPretreatment(bitmapSelected);
 			showPicture(imgTreated, bitmapTreated);
+			
+//			new Thread(new Runnable() {
+//				@Override
+//				public void run() {
+//					Message msg = new Message();
+//					String str = MusicRecognition.getSomeone(bitmapTreated);
+//					msg.obj = str;
+//					myHandler.sendMessage(msg);
+//				}
+//
+//			}).start();
 		}
 		
 	}
@@ -88,6 +122,18 @@ public class MainActivity extends Activity {
 				intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(IMG_PATH, "temp.jpg")));
 				startActivityForResult(intent, PHOTO_CAPTURE);
+				break;
+			case R.id.btn_picture: 
+				intent = new Intent(Intent.ACTION_GET_CONTENT);
+				intent.addCategory(Intent.CATEGORY_OPENABLE);
+				intent.setType("image/*");
+				intent.putExtra("crop", "true");
+				intent.putExtra("scale", true);
+				intent.putExtra("return-data", false);
+				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(IMG_PATH, "temp_cropped.jpg")));
+				intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
+				intent.putExtra("noFaceDetection", true);
+				startActivityForResult(intent, PHOTO_RESULT);
 				break;
 			case R.id.btn_play: 
 				intent = new Intent(MainActivity.this, TestActivity.class);
@@ -159,8 +205,7 @@ public class MainActivity extends Activity {
 	private Bitmap decodeUriAsBitmap(Uri uri) {
 		Bitmap bitmap = null;
 		try {
-			bitmap = BitmapFactory.decodeStream(getContentResolver()
-					.openInputStream(uri));
+			bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(uri));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			return null;
