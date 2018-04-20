@@ -2,10 +2,8 @@ package com.example.omr;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 
 import com.example.omr.tools.ImgPretreatment;
-import com.example.omr.tools.MusicRecognition;
 
 import android.app.Activity;
 import android.content.Intent;

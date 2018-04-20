@@ -6,7 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
 
-public class MusicRecognition {
+public class MusicInfo {
 	
 	private static Bitmap img;
 	private static int imgWidth;
