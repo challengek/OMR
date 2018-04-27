@@ -4,11 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 
 import com.example.omr.tools.ImgPretreatment;
+import com.example.omr.tools.MusicMIDI;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -28,7 +30,7 @@ public class MainActivity extends Activity {
 	private static final int PHOTO_CAPTURE = 0x11;// 拍照
 	private static final int PHOTO_RESULT = 0x12;// 结果
 	
-	private static String IMG_PATH = getSDPath() + java.io.File.separator + "omrdir";
+	private static String DIR_PATH = getSDPath() + java.io.File.separator + "omrdir";
 	
 	private static ImageButton btnCamera;
 	private static ImageButton btnPicture;
@@ -41,6 +43,9 @@ public class MainActivity extends Activity {
 
 	private static Bitmap bitmapSelected;
 	private static Bitmap bitmapTreated;
+	
+	private MediaPlayer player; //MediaPlayer对象
+	private File musicFile;
 	
 	// 该handler用于处理修改结果的任务
 	public static Handler myHandler = new Handler() {
@@ -72,6 +77,7 @@ public class MainActivity extends Activity {
 		btnPicture.setOnClickListener(new OnClick());
 		btnPlay.setOnClickListener(new OnClick());
 		btnPause.setOnClickListener(new OnClick());
+		btnPause.setEnabled(false);
 	}
 	
 	@Override
@@ -82,11 +88,11 @@ public class MainActivity extends Activity {
 			return;
 
 		if (requestCode == PHOTO_CAPTURE) {
-			startPhotoCrop(Uri.fromFile(new File(IMG_PATH, "temp.jpg")));
+			startPhotoCrop(Uri.fromFile(new File(DIR_PATH, "temp.jpg")));
 		}
 		
 		if (requestCode == PHOTO_RESULT) {
-			bitmapSelected = decodeUriAsBitmap(Uri.fromFile(new File(IMG_PATH, "temp_cropped.jpg")));
+			bitmapSelected = decodeUriAsBitmap(Uri.fromFile(new File(DIR_PATH, "temp_cropped.jpg")));
 			showPicture(imgSelected, bitmapSelected);
 			bitmapTreated = ImgPretreatment.doPretreatment(bitmapSelected);
 			showPicture(imgTreated, bitmapTreated);
@@ -115,10 +121,12 @@ public class MainActivity extends Activity {
 		public void onClick(View v) {
 			// TODO Auto-generated method stub
 			Intent intent = null;
+			Message msg = new Message();
+		    String str;
 			switch(v.getId()) {
 			case R.id.btn_camera: 
 				intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(IMG_PATH, "temp.jpg")));
+				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(DIR_PATH, "temp.jpg")));
 				startActivityForResult(intent, PHOTO_CAPTURE);
 				break;
 			case R.id.btn_picture: 
@@ -128,18 +136,30 @@ public class MainActivity extends Activity {
 				intent.putExtra("crop", "true");
 				intent.putExtra("scale", true);
 				intent.putExtra("return-data", false);
-				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(IMG_PATH, "temp_cropped.jpg")));
+				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(DIR_PATH, "temp_cropped.jpg")));
 				intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
 				intent.putExtra("noFaceDetection", true);
 				startActivityForResult(intent, PHOTO_RESULT);
 				break;
 			case R.id.btn_play: 
-				intent = new Intent(MainActivity.this, TestActivity.class);
-				startActivity(intent);
+				musicFile = new File(DIR_PATH, "temp.mid"); //获取要播放的文件
+			    if(musicFile.exists()){ 
+			      player = MediaPlayer.create(MainActivity.this, Uri.parse(musicFile.getAbsolutePath())); //创建MediaPlayer独享
+			    }
+			    MusicMIDI.play(player, musicFile);
+			    btnPlay.setEnabled(false);
+			    btnPause.setEnabled(true);
+			    str = "播放中...";
+			    msg.obj = str;
+			    myHandler.sendMessage(msg);
 				break;
 			case R.id.btn_pause: 
-				intent = new Intent(MainActivity.this, TestActivity.class);
-				startActivity(intent);
+				MusicMIDI.stop(player);
+				btnPlay.setEnabled(true);
+			    btnPause.setEnabled(false);
+			    str = "已停止...";
+			    msg.obj = str;
+			    myHandler.sendMessage(msg);
 				break;
 			default : startActivity(intent);
 			}
@@ -165,6 +185,16 @@ public class MainActivity extends Activity {
 		return super.onOptionsItemSelected(item);
 	}
 	
+	@Override
+	protected void onDestroy() {
+		// TODO Auto-generated method stub
+		super.onDestroy();
+		if(player.isPlaying()) {
+			player.stop();
+		}
+		player.release();
+	}
+	
 	/**
 	 * 获取sd卡的路径
 	 * 
@@ -188,7 +218,7 @@ public class MainActivity extends Activity {
 		intent.setDataAndType(uri, "image/*");
 		intent.putExtra("crop", "true");
 		intent.putExtra("scale", true);
-		intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(IMG_PATH, "temp_cropped.jpg")));
+		intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(DIR_PATH, "temp_cropped.jpg")));
 		intent.putExtra("return-data", false);
 		intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
 		intent.putExtra("noFaceDetection", true);
