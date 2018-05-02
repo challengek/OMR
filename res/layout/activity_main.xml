@@ -105,6 +105,24 @@
                 android:adjustViewBounds="true"
                 android:maxHeight="300dp" />
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="删除谱线后的图像:" />
+            <ImageView
+                android:id="@+id/img_deleted"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:maxHeight="300dp" />
+
+            <TextView
+                android:id="@+id/data_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NULL..."
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
         </LinearLayout>
     </ScrollView>
 

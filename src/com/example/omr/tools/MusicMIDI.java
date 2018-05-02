@@ -7,6 +7,10 @@ import android.media.MediaPlayer;
 
 public class MusicMIDI {
 
+	/**
+	 * @param player
+	 * @param musicFile
+	 */
 	public static void play(MediaPlayer player, File musicFile) {
 		try {
 			player.reset(); 
@@ -28,6 +32,9 @@ public class MusicMIDI {
 		}
 	}
 	
+	/**
+	 * @param player
+	 */
 	public static void stop(MediaPlayer player) {
 		if(player.isPlaying()) {
 			player.stop();

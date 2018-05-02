@@ -3,175 +3,273 @@ package com.example.omr.tools;
 import java.util.ArrayList;
 
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.Color;
-import android.graphics.Matrix;
 
 public class MusicInfo {
-	
-	private static Bitmap img;
-	private static int imgWidth;
-	private static int imgHeight;
-	private static int[] imgPixels;
-	
-	private static final int STRIP_WIDTH = 32;
 
-	private static void setImgInfo(Bitmap bmp) {
-		img = bmp;
-		imgWidth = img.getWidth();
-		imgHeight = img.getHeight();
-		imgPixels = new int[imgWidth * imgHeight];
-		img.getPixels(imgPixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
-	}
 	
 	/**
 	 * 测试
+	 */
+	public static String getData(Bitmap bmp) {
+//		int num = getLineWidth(setRunMap(bmp));
+//		String str = "计算完成... 结果:" + num;
+		String str = "";
+		getLinePosit(bmp);
+		return str;
+	}
+	
+	public static Bitmap getBitmap(Bitmap bmp) {
+		Bitmap result = delLine(getLinePosit(bmp), bmp);
+		return result;
+	}
+	
+	/**
+	 * 删除谱线(采用直线追踪法删除谱线)
+	 * @param array
 	 * @param bmp
 	 * @return
 	 */
-	public static String getSomeone(Bitmap bmp) {
-		setImgInfo(bmp);
-		String str = "";
-		return str;
+	private static Bitmap delLine(ArrayList<Integer> array, Bitmap bmp) {
+		int width = bmp.getWidth();
+		int height = bmp.getHeight();
+		int[] pixels = new int[width * height];
+		bmp.getPixels(pixels, 0, width, 0, 0, width, height);
+		
+		for(Integer i : array) {
+			for(int j = 0; j < width; j++) {
+				if(pixels[width * (i - 1) + j] != Color.rgb(0, 0, 0) 
+						|| pixels[width * (i + 1) + j] != Color.rgb(0, 0, 0)) {
+					pixels[width * i + j] = Color.rgb(255, 255, 255);
+				}
+			}
+		}
+		Bitmap result = Bitmap
+				.createBitmap(width, height, Config.RGB_565);
+		result.setPixels(pixels, 0, width, 0, 0, width, height);
+		return result;
 	}
-
+	
+	
 	/**
-	 * 对图像进行倾斜矫正
-	 * @param bitmap
+	 * 谱线定位(采用水平投影求出峰值即为谱线的位置)
+	 * @param bmp
 	 * @return
 	 */
-	private static int[] tiltCorrection(Bitmap image) {
-		// TODO:
-		setImgInfo(image);
-		int[] parms = calculateRange();
-		int k = imgWidth / STRIP_WIDTH;
-		// offset 存储各个区域相对于左端区域的相对偏移量
-		int [] offset = new int[k];
-		for(int os : offset) {
-			os = 0;
+	private static ArrayList<Integer> getLinePosit(Bitmap bmp) {
+		int width = bmp.getWidth();
+		int height = bmp.getHeight();
+		int[] projection = new int[height];
+		for(int j = 0; j < height; j++) {
+			for(int i = 0; i < width; i++) {
+				if(bmp.getPixel(i, j) == Color.rgb(0, 0, 0)) {
+					projection[j]++;
+				}
+			}
 		}
 		
-		// 获取各个区域的水平投影直方图
-		int [][] Pk = new int[k][];
-		for(int n = 0; n < k; n++) {
-			int[] P = new int[imgHeight];
-			for(int j = 0; j < imgHeight; j++) {
-				for(int i = n * STRIP_WIDTH; i < (n + 1) * STRIP_WIDTH; i++) {
-					if(img.getPixel(i, j) == Color.rgb(255, 255, 255)) {
-						P[j]++;
-					}
-				}
+		ArrayList<Integer> array = new ArrayList<Integer>();
+		
+		for(int n = 0; n < projection.length; n++) {
+			if(projection[n] > width * 3 / 5) {
+				array.add(n);
 			}
-			Pk[n] = P;
 		}
 		
-		int[] C = new int[2 * parms[1]];
-		int[] P_0 = new int[imgHeight];
-		// 计算各个区域的水平投影队列相对于基准的交叉相关性
-		for(int n = 1; n < k; n++) {
-			// 计算校正基准P'0(j)
-			for(int j = 0; j < imgHeight; j++) {
-				for(int p = 1; p <= n; p++) {
-					P_0[j] += Pk[p-1][j + offset[p-1]];
-				}
-			}
-			
-			for(int l = 0; l > -parms[1] && l < parms[1]; l++) {
-				for(int j = parms[1]; j < imgHeight - parms[1]; j++) {
-					C[l] = Pk[n][j + l + offset[n - 1]] * P_0[j];
-				}
-			}
-			
-			int max_l = 0;
-			int max = 0;
-			for(int m = 0; m < C.length; m++) {
-				if(C[m] > max) {
-					max = C[m];
-					max_l = m - parms[1];
-				}
-			}
-			offset[n] = offset[n - 1] + max_l;
-		}
-		
-		return offset;
+		return array;
 	}
 	
-	/**
-     * 图像旋转
-     * @param img 原图
-     * @param alpha  旋转角度，可正可负
-     * @return 旋转后的图片
-     */
-	private static Bitmap rotateBitmap(Bitmap bmp, float alpha) {
-        if (bmp == null) {
-            return null;
-        }
-        int width = bmp.getWidth();
-        int height = bmp.getHeight();
-        Matrix matrix = new Matrix();
-        matrix.setRotate(alpha);
-        // 围绕原地进行旋转
-        Bitmap newBM = Bitmap.createBitmap(bmp, 0, 0, width, height, matrix, false);
-        if (newBM.equals(bmp)) {
-            return newBM;
-        }
-        bmp.recycle();
-        return newBM;
-    }
+	//
 	
-	/**
-	 * 预计算线宽和间距的平均值
-	 */
-	private static int[] calculateRange() {
-		ArrayList<ArrayList<Integer>> arrs = runLengthCoding();
-		int count_0 = 0;
-		int number_0 = 0;
-		int count_1 = 0;
-		int number_1 = 0;
-		for(int i = 1; i < arrs.size(); i++) {
-			if(arrs.get(i).get(0) == 0) {
-				count_0++;
-				number_0 += arrs.get(i).get(1);
-			} else if(arrs.get(i).get(0) == 1) {
-				count_1++;
-				number_1 += arrs.get(i).get(1);
-			}
-		}
-		int[] parms = new int[2];
-		parms[0] = number_0 / count_0;
-		parms[1] = number_1 / count_1;
-		return parms;
-	}
+//	private static int getLineWidth(ArrayList<StructRun> runs) {
+//		ArrayList<ArrayList<Integer>> counts = new ArrayList<ArrayList<Integer>>();
+//		ArrayList<Integer> newCount = null;
+//		int bh = 0;
+//		int maxFrequency = 0;
+//		int maxFrequencyBh = 0;
+//		boolean flag = false;
+//		for(StructRun run : runs) {
+//			bh = run.getEndRow() - run.getBegRow() + 1;
+//			for(ArrayList<Integer> count : counts) {
+//				if(count.get(0) == bh) {
+//					count.set(1, count.get(1) + 1);
+//					flag = true;
+//					break;
+//				}
+//			}
+//			if(flag == false) {
+//				newCount = new ArrayList<Integer>();
+//				newCount.add(bh);
+//				newCount.add(1);
+//				counts.add(newCount);
+//			}
+//			flag = false;
+//		}
+//		
+//		for(ArrayList<Integer> count : counts) {
+//			if(count.get(1) > maxFrequency) {
+//				maxFrequency = count.get(1);
+//				maxFrequencyBh = count.get(0);
+//			}
+//		}
+//		
+//		return maxFrequencyBh;
+//	}
 	
-	// 对图像水平方向最中间垂线最为进行垂直游程编码
-	private static ArrayList<ArrayList<Integer>> runLengthCoding() {
-		// TODO:
-		ArrayList<ArrayList<Integer>> arrs = new ArrayList<ArrayList<Integer>>();
-		int i = imgWidth / 2;
-		int count = 1;
-		int num = 0;
-		for(int j = 1; j < imgHeight; j++) {
-			if(img.getPixel(i, j) != img.getPixel(i, j - 1)) {
-				if(img.getPixel(i, j) == Color.rgb(255, 255, 255)) {
-					ArrayList<Integer> arr = new ArrayList<Integer>();
-					arr.add(0, 0);
-					arr.add(1, count);
-					arrs.add(arr);
-					count = 1;
-				}
-				if(img.getPixel(i, j) == Color.rgb(0, 0, 0)) {
-					ArrayList<Integer> arr = new ArrayList<Integer>();
-					arr.add(0, 1);
-					arr.add(1, count);
-					arrs.add(arr);
-					count = 1;
-				}
-			} else {
-				count++;
-			}
-		}
-		
-		return arrs;
-	}
+//	/**
+//	 * 建立游程邻接图
+//	 * @param bmp
+//	 * @return
+//	 */
+//	private static ArrayList<StructRun> setRunMap(Bitmap bmp) {
+//		int bmpWidth = bmp.getWidth();
+//		int bmpHeight = bmp.getHeight();
+//		ArrayList<StructRun> runs = new ArrayList<StructRun>();
+//		for(int i = 0; i < bmpWidth; i++) {
+//			StructRun run = null;
+//			if(bmp.getPixel(i, 0) == Color.rgb(0, 0, 0)) {
+//				run = new StructRun();
+//				run.setCol(i);
+//				run.setBegRow(0);
+//				run.setEndRow(0);
+//				run.setChildren(new ArrayList<StructRun>());
+//				run.setParents(new ArrayList<StructRun>());
+//				run.setTag(0);
+//			}
+//			for(int j = 1; j < bmpHeight; j++) {
+//				if(bmp.getPixel(i, j) == Color.rgb(0, 0, 0) 
+//						&& bmp.getPixel(i, j - 1) == Color.rgb(0, 0, 0)) {
+//					run.setEndRow(j);
+//				} else if(bmp.getPixel(i, j) == Color.rgb(0, 0, 0) 
+//						&& bmp.getPixel(i, j - 1) == Color.rgb(255, 255, 255)) {
+//					run = new StructRun();
+//					run.setCol(i);
+//					run.setBegRow(j);
+//					run.setEndRow(j);
+//					run.setChildren(new ArrayList<StructRun>());
+//					run.setParents(new ArrayList<StructRun>());
+//					run.setTag(0);
+//				} else if(bmp.getPixel(i, j) == Color.rgb(255, 255, 255) 
+//						&& bmp.getPixel(i, j - 1) == Color.rgb(0, 0, 0)) {
+//					for(StructRun sr : runs) {
+//						if(run.getCol() == sr.getCol() + 1 
+//								&& !(run.getBegRow() > sr.getEndRow())
+//										&& !(run.getEndRow() < sr.getBegRow())) {
+//							run.getParents().add(sr);
+//							sr.getChildren().add(run);
+//						}
+//					}
+//					runs.add(run);
+//				}
+//			}
+//		}
+////		// TODO:
+////		// 以下部分用于测试
+////		ArrayList<StructRun> r = new ArrayList<StructRun>();
+////		for(StructRun sr : runs) {
+////			if(sr.getTag() != 0) {
+////				r.add(sr);
+////			}
+////		}
+//		return runs;
+//	}
+	
+//	/**
+//	 * 建立图段邻接图
+//	 * @param runs
+//	 * @return
+//	 */
+//	private ArrayList<StructSection> setSectionMap(ArrayList<StructRun> runs) {
+//		StructSection section = null;
+//		for(StructRun run : runs) {
+//			if(run.getTag() == 0) {
+//				section = depthFirst(run, null,null);
+//				if(section.getParents().size() == 0 && section.getChildren().size() == 0) {
+//					section.setType(0);
+//				} else if(section.getParents().size() >=2 || section.getChildren().size() >= 2) {
+//					section.setType(2);
+//				} else {
+//					section.setType(1);
+//				}
+//			}
+//		}
+//		
+//		return null;
+//	}
+	
+//	/**
+//	 * @param run 当前游程
+//	 * @param section 当前图段
+//	 * @param lastSection 上一次生成的图段
+//	 * @return
+//	 */
+//	private StructSection depthFirst(StructRun run, StructSection section, StructSection lastSection) {
+//		run.setTag(1);
+//		if(section == null) {
+//			section = new StructSection();
+//			section.setRuns(new ArrayList<StructRun>());
+//			section.setParents(new ArrayList<StructSection>());
+//			section.setChildren(new ArrayList<StructSection>());
+//			sections.add(section);
+//			if(lastSection != null) {
+//				// TODO:
+//			}
+//		}
+//		section.getRuns().add(run);
+//		run.setpSection(section);
+//		// 深度优先搜索子游程
+//		for(StructRun son : run.getChildren()) {
+//			if(son.getTag() == 1) {
+//				// TODO:
+//			} else {
+//				if(run.getChildren().size() == 1 && son.getParents().size() < 2) {
+//					depthFirst(son, section, null);
+//				} else {
+//					depthFirst(son, null, run.getpSection());
+//				}
+//			}
+//		}
+//		// 深度优先搜索父游程 
+//		for(StructRun father : run.getParents()) {
+//			if(father.getTag() == 1) {
+//				// TODO:
+//			} else {
+//				if(run.getChildren().size() == 1 && father.getChildren().size() < 2) {
+//					depthFirst(father, section, null);
+//				} else {
+//					depthFirst(father, null, run.getpSection());
+//				}
+//			}
+//		}
+//		
+//		return section;
+//	}
+	
+//	/**
+//	 * 将二值化的图像转换为二值数组
+//	 * @param bmp
+//	 * @return
+//	 */
+//	private static byte[][] setPixelsToDuoValue(Bitmap bmp) {
+//		byte[][] duoValue;
+//		int bmpWidth = bmp.getWidth();
+//		int bmpHeight = bmp.getHeight();
+//		duoValue = new byte[bmpWidth][bmpHeight];
+//		int num;
+//		for(int j = 0; j < bmpHeight; j++) {
+//			for(int i = 0; i < bmpWidth; i++) {
+//				num = bmp.getPixel(i, j);
+//				if(num == Color.rgb(255, 255, 255)) {
+//					duoValue[i][j] = 0;
+//				} else if(num == Color.rgb(0, 0, 0)) {
+//					duoValue[i][j] = 1;
+//				}
+//			}
+//		}
+//		return duoValue;
+//	}
+	
 }
 
 

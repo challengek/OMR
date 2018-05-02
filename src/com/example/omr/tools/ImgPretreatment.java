@@ -42,10 +42,11 @@ public class ImgPretreatment {
 
 		setImgInfo(img);
 
+		// 灰度化图片
 		Bitmap grayImg = getGrayImg();
 
 		int[] p = new int[2];
-		int maxGrayValue = 0, minGrayValue = 255;
+		int maxGrayValue, minGrayValue;
 		// 计算最大及最小灰度值
 		getMinMaxGrayValue(p);
 		minGrayValue = p[0];
@@ -233,8 +234,8 @@ public class ImgPretreatment {
 
 	// 计算最大最小灰度,保存在数组中
 	private static void getMinMaxGrayValue(int[] p) {
-		int minGrayValue = 255;
-		int maxGrayValue = 0;
+		int minGrayValue = -1;
+		int maxGrayValue = 0xFF << 24;
 		for (int i = 0; i < imgHeight - 1; i++) {
 			for (int j = 0; j < imgWidth - 1; j++) {
 				int gray = imgPixels[i * imgWidth + imgHeight];
