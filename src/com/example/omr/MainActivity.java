@@ -2,10 +2,12 @@ package com.example.omr;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 
 import com.example.omr.tools.ImgPretreatment;
-import com.example.omr.tools.MusicInfo;
+import com.example.omr.tools.MusicLineInfo;
 import com.example.omr.tools.MusicMIDI;
+import com.example.omr.tools.MusicNoteInfo;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -65,13 +67,13 @@ public class MainActivity extends Activity {
 			if(msg.what == MUSIC_PLAYING) {
 				tvResult.setText("播放中...");
 			} else if(msg.what == MUSIC_STOPED) {
-				tvResult.setText("已停止...");
+				tvResult.setText("已停止!");
 			} else if(msg.what == CHANGE_SELECTED_IMAGE) {
-				tvResult.setText("以获取到图片\n正在预处理图片...");
+				tvResult.setText("已获取到图片!\n正在预处理图片...");
 			} else if(msg.what == CHANGE_TREATED_IMAGE) {
-				tvResult.setText("图片预处理完成\n正在删除谱线...");
+				tvResult.setText("图片预处理完成!\n正在删除谱线...");
 			} else if(msg.what == CHANGE_DELETED_IMAGE) {
-				tvResult.setText("乐谱谱线已删除...");
+				tvResult.setText("乐谱谱线已删除!");
 			}
 			super.handleMessage(msg);
 		}
@@ -82,7 +84,7 @@ public class MainActivity extends Activity {
 		
 		@Override
 		public void handleMessage(Message msg) {
-			dataView.setText("计算完成...");
+			dataView.setText("计算完成!" + msg.obj);
 			super.handleMessage(msg);
 		}
 	};
@@ -140,34 +142,59 @@ public class MainActivity extends Activity {
 			bitmapSelected = decodeUriAsBitmap(Uri.fromFile(new File(DIR_PATH, "temp_cropped.jpg")));
 			showPicture(imgSelected, bitmapSelected);
 			
-			
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					Message msg = new Message();
-					msg.what = CHANGE_SELECTED_IMAGE;
-					stateHandler.sendMessage(msg);
+					Message stateMSG;
+					Message imageMSG;
+					Message dataMSG;
 					
-					Message msg1 = new Message();
-					Message msg2 = new Message();
+					stateMSG = new Message();
+					stateMSG.what = CHANGE_SELECTED_IMAGE;
+					stateHandler.sendMessage(stateMSG);
+					
+					imageMSG = new Message();
+					stateMSG = new Message();
 					bitmapTreated = ImgPretreatment.doPretreatment(bitmapSelected);
-					msg1.what = CHANGE_TREATED_IMAGE;
-					msg2.what = CHANGE_TREATED_IMAGE;
-					imageHandler.sendMessage(msg1);
-					stateHandler.sendMessage(msg2);
+					imageMSG.what = CHANGE_TREATED_IMAGE;
+					stateMSG.what = CHANGE_TREATED_IMAGE;
+					imageHandler.sendMessage(imageMSG);
+					stateHandler.sendMessage(stateMSG);
 					
-					msg1 = new Message();
-					msg2 = new Message();
-					bitmapDeletedLine = MusicInfo.getBitmap(bitmapTreated);
-					msg1.what = CHANGE_DELETED_IMAGE;
-					msg2.what = CHANGE_DELETED_IMAGE;
-					imageHandler.sendMessage(msg1);
-					stateHandler.sendMessage(msg2);
+					imageMSG = new Message();
+					stateMSG = new Message();
+					bitmapDeletedLine = MusicLineInfo.getImageAfterDelLine(bitmapTreated);
+					imageMSG.what = CHANGE_DELETED_IMAGE;
+					stateMSG.what = CHANGE_DELETED_IMAGE;
+					imageHandler.sendMessage(imageMSG);
+					stateHandler.sendMessage(stateMSG);
+					
+					// 测试数据区
+					dataMSG = new Message();
+					String str = "";
+					str = "\n线宽:" + MusicLineInfo.getStaffW() + "\n间宽:" + MusicLineInfo.getStaffSpace();
+					dataMSG.obj = str;
+					dataHandler.sendMessage(dataMSG);
+					
+					ArrayList<Bitmap> bmps = MusicNoteInfo.get(bitmapDeletedLine);
+					while(true) {
+						for(Bitmap bmp : bmps) {
+							imageMSG = new Message();
+							bitmapDeletedLine = bmp;
+							imageMSG.what = CHANGE_DELETED_IMAGE;
+							imageHandler.sendMessage(imageMSG);
+							try {
+								Thread.sleep(3000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+					
 				}
 
 			}).start();
 		}
-		
 	}
 
 	/**
@@ -180,7 +207,7 @@ public class MainActivity extends Activity {
 		public void onClick(View v) {
 			// TODO Auto-generated method stub
 			Intent intent = null;
-			Message msg = new Message();
+			Message stateMSG = new Message();
 		    String str;
 			switch(v.getId()) {
 			case R.id.btn_camera: 
@@ -208,15 +235,15 @@ public class MainActivity extends Activity {
 			    MusicMIDI.play(player, musicFile);
 			    btnPlay.setEnabled(false);
 			    btnPause.setEnabled(true);
-			    msg.what = MUSIC_PLAYING;
-			    stateHandler.sendMessage(msg);
+			    stateMSG.what = MUSIC_PLAYING;
+			    stateHandler.sendMessage(stateMSG);
 				break;
 			case R.id.btn_pause: 
 				MusicMIDI.stop(player);
 				btnPlay.setEnabled(true);
 			    btnPause.setEnabled(false);
-			    msg.what = MUSIC_STOPED;
-			    stateHandler.sendMessage(msg);
+			    stateMSG.what = MUSIC_STOPED;
+			    stateHandler.sendMessage(stateMSG);
 				break;
 			default : startActivity(intent);
 			}
