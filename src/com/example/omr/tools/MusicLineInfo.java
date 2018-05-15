@@ -160,6 +160,9 @@ public class MusicLineInfo {
 				if(bmp.getPixel(i, j) == Color.rgb(0, 0, 0) 
 						&& bmp.getPixel(i, j - 1) == Color.rgb(0, 0, 0)) {
 					run.setEndRow(j);
+					if(j == bmpHeight - 1 && run != null) {
+						runs.add(run);
+					}
 				} else if(bmp.getPixel(i, j) == Color.rgb(0, 0, 0) 
 						&& bmp.getPixel(i, j - 1) == Color.rgb(255, 255, 255)) {
 					run = new Vrun();
@@ -172,14 +175,6 @@ public class MusicLineInfo {
 				}
 			}
 		}
-//		// TODO:
-//		// 以下部分用于测试数据
-//		ArrayList<StructRun> r = new ArrayList<StructRun>();
-//		for(StructRun sr : runs) {
-//			if(sr.getTag() != 0) {
-//				r.add(sr);
-//			}
-//		}
 		return runs;
 	}
 	

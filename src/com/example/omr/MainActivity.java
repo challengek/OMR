@@ -2,18 +2,19 @@ package com.example.omr;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 
+import com.example.omr.system.MusicSystem;
 import com.example.omr.tools.ImgPretreatment;
 import com.example.omr.tools.MusicLineInfo;
 import com.example.omr.tools.MusicMIDI;
-import com.example.omr.tools.MusicNoteInfo;
+import com.example.omr.tools.MusicSymbolInfo;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnCompletionListener;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -37,7 +38,8 @@ public class MainActivity extends Activity {
 	private static final int CHANGE_DELETED_IMAGE = 0x23;// 刷新删除谱线后的图片
 	private static final int MUSIC_PLAYING = 0x31;// 音乐播放
 	private static final int MUSIC_STOPED = 0x32;// 音乐停止
-	
+	private static final int MUSIC_OVER = 0x33;// 音乐播放完成
+	private static final int COMPLETION = 0x41;// 音乐播放完成
 	
 	private static String DIR_PATH = getSDPath() + java.io.File.separator + "omrdir";
 	
@@ -59,21 +61,27 @@ public class MainActivity extends Activity {
 	private MediaPlayer player; // MediaPlayer对象
 	private File musicFile;
 	
+	private Thread thread = null;
+	
 	// 该handler用于处理修改结果的任务
 	public static Handler stateHandler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
 			if(msg.what == MUSIC_PLAYING) {
-				tvResult.setText("播放中...");
+				tvResult.setText("播放中...\n");
 			} else if(msg.what == MUSIC_STOPED) {
-				tvResult.setText("已停止!");
+				tvResult.setText("已停止!\n");
+			} else if(msg.what == MUSIC_OVER) {
+				tvResult.setText("音乐播放完毕!\n");
 			} else if(msg.what == CHANGE_SELECTED_IMAGE) {
 				tvResult.setText("已获取到图片!\n正在预处理图片...");
 			} else if(msg.what == CHANGE_TREATED_IMAGE) {
 				tvResult.setText("图片预处理完成!\n正在删除谱线...");
 			} else if(msg.what == CHANGE_DELETED_IMAGE) {
-				tvResult.setText("乐谱谱线已删除!");
+				tvResult.setText("乐谱谱线已删除!\n正在识别音符...");
+			} else if(msg.what == COMPLETION) {
+				tvResult.setText("乐谱识别完成!\n");
 			}
 			super.handleMessage(msg);
 		}
@@ -124,7 +132,9 @@ public class MainActivity extends Activity {
 		btnPicture.setOnClickListener(new OnClick());
 		btnPlay.setOnClickListener(new OnClick());
 		btnPause.setOnClickListener(new OnClick());
+		btnPlay.setEnabled(false);
 		btnPause.setEnabled(false);
+		
 	}
 	
 	@Override
@@ -142,7 +152,7 @@ public class MainActivity extends Activity {
 			bitmapSelected = decodeUriAsBitmap(Uri.fromFile(new File(DIR_PATH, "temp_cropped.jpg")));
 			showPicture(imgSelected, bitmapSelected);
 			
-			new Thread(new Runnable() {
+			thread = new Thread(new Runnable() {
 				@Override
 				public void run() {
 					Message stateMSG;
@@ -176,24 +186,18 @@ public class MainActivity extends Activity {
 					dataMSG.obj = str;
 					dataHandler.sendMessage(dataMSG);
 					
-					ArrayList<Bitmap> bmps = MusicNoteInfo.get(bitmapDeletedLine);
-					while(true) {
-						for(Bitmap bmp : bmps) {
-							imageMSG = new Message();
-							bitmapDeletedLine = bmp;
-							imageMSG.what = CHANGE_DELETED_IMAGE;
-							imageHandler.sendMessage(imageMSG);
-							try {
-								Thread.sleep(3000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
-						}
-					}
+					MusicSystem ms = MusicSymbolInfo.rebuildTabs(bitmapDeletedLine);
+					MusicMIDI.generateEventSeq(ms, DIR_PATH);
+					
+					stateMSG = new Message();
+					stateMSG.what = COMPLETION;
+					stateHandler.sendMessage(stateMSG);
 					
 				}
 
-			}).start();
+			});
+			thread.start();
+			btnPlay.setEnabled(true);
 		}
 	}
 
@@ -211,11 +215,15 @@ public class MainActivity extends Activity {
 		    String str;
 			switch(v.getId()) {
 			case R.id.btn_camera: 
+				btnPlay.setEnabled(false);
+			    btnPause.setEnabled(false);
 				intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 				intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(new File(DIR_PATH, "temp.jpg")));
 				startActivityForResult(intent, PHOTO_CAPTURE);
 				break;
 			case R.id.btn_picture: 
+				btnPlay.setEnabled(false);
+			    btnPause.setEnabled(false);
 				intent = new Intent(Intent.ACTION_GET_CONTENT);
 				intent.addCategory(Intent.CATEGORY_OPENABLE);
 				intent.setType("image/*");
@@ -230,18 +238,33 @@ public class MainActivity extends Activity {
 			case R.id.btn_play: 
 				musicFile = new File(DIR_PATH, "temp.mid"); //获取要播放的文件
 			    if(musicFile.exists()){ 
-			      player = MediaPlayer.create(MainActivity.this, Uri.parse(musicFile.getAbsolutePath())); //创建MediaPlayer独享
+			      player = MediaPlayer.create(MainActivity.this, Uri.parse(musicFile.getAbsolutePath())); //创建MediaPlayer
+			      // 绑定音乐播放完成事件
+			      player.setOnCompletionListener(new OnCompletionListener() {
+						
+						@Override
+						public void onCompletion(MediaPlayer mp) {
+							btnPlay.setEnabled(true);
+							btnPause.setEnabled(false);
+							Message stateMSG;
+							
+							stateMSG = new Message();
+							stateMSG.what = MUSIC_OVER;
+							stateHandler.sendMessage(stateMSG);
+
+						}
+					});
 			    }
-			    MusicMIDI.play(player, musicFile);
 			    btnPlay.setEnabled(false);
 			    btnPause.setEnabled(true);
+			    MusicMIDI.play(player, musicFile);
 			    stateMSG.what = MUSIC_PLAYING;
 			    stateHandler.sendMessage(stateMSG);
 				break;
 			case R.id.btn_pause: 
-				MusicMIDI.stop(player);
 				btnPlay.setEnabled(true);
 			    btnPause.setEnabled(false);
+				MusicMIDI.stop(player);
 			    stateMSG.what = MUSIC_STOPED;
 			    stateHandler.sendMessage(stateMSG);
 				break;
